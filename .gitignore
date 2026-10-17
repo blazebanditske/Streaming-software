@@ -1,0 +1,11 @@
+node_modules/
+data/
+*.key
+dist/
+build/
+out/
+.DS_Store
+*.log
+.env
+mobile/android/
+mobile/ios/

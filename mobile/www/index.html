@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Streaming Software</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section id="setup" class="setup">
+      <div class="setup-inner">
+        <div class="logo" aria-hidden="true">📡</div>
+        <h1>Streaming Software</h1>
+        <p class="lede">
+          Point this app at the studio running on your computer. One capture, many
+          destinations — YouTube, Twitch, Facebook, TikTok, or any RTMP server.
+        </p>
+
+        <label class="field">
+          <span>Studio server address</span>
+          <input
+            id="server-url"
+            type="url"
+            inputmode="url"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="http://192.168.1.20:8080"
+          />
+        </label>
+
+        <button id="connect" class="btn" type="button">Connect</button>
+        <p id="status" class="status" role="status"></p>
+        <p id="hint" class="hint"></p>
+      </div>
+      <p class="footnote">
+        Your stream keys never leave the machine running the studio.
+      </p>
+    </section>
+
+    <div id="frame-wrap" class="frame-wrap">
+      <button id="change" class="change" type="button" title="Change server">⚙</button>
+      <iframe
+        id="frame"
+        class="frame"
+        hidden
+        title="Studio"
+        allow="camera; microphone; autoplay; fullscreen"
+      ></iframe>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

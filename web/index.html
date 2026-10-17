@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>Streaming Software — free multistreaming studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot" aria-hidden="true"></span>
+        <h1>Streaming Software</h1>
+      </div>
+      <div class="topbar-right">
+        <span id="conn" class="pill pill--idle" role="status">connecting…</span>
+        <span id="live" class="pill pill--idle" role="status">offline</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card" aria-labelledby="ingest-h">
+        <h2 id="ingest-h">1 · Where your video comes from</h2>
+        <p class="muted">
+          Use the built-in camera studio below, or point any encoder (OBS, Streamlabs, ffmpeg)
+          at this ingest URL. One ingest, many destinations.
+        </p>
+        <div class="ingest-row">
+          <code id="ingest-url">rtmp://localhost:1935/live/studio</code>
+          <button id="copy-ingest" class="btn btn--ghost" type="button">Copy</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="capture-h">
+        <h2 id="capture-h">2 · Camera studio</h2>
+        <p class="muted">
+          Optional. Records your camera and mic in the browser and pushes to the ingest above.
+          Leave it off if you are using OBS.
+        </p>
+        <div class="capture-grid">
+          <video id="preview" playsinline muted autoplay></video>
+          <div class="capture-controls">
+            <label class="field">
+              <span>Camera</span>
+              <select id="video-device"></select>
+            </label>
+            <label class="field">
+              <span>Microphone</span>
+              <select id="audio-device"></select>
+            </label>
+            <label class="field">
+              <span>Resolution</span>
+              <select id="resolution">
+                <option value="1280x720">720p — 1280×720</option>
+                <option value="1920x1080">1080p — 1920×1080</option>
+                <option value="854x480">480p — 854×480</option>
+              </select>
+            </label>
+            <div class="btn-row">
+              <button id="cam-start" class="btn" type="button">Start camera</button>
+              <button id="cam-stop" class="btn btn--ghost" type="button" disabled>Stop</button>
+            </div>
+            <p id="capture-note" class="note" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="dest-h">
+        <h2 id="dest-h">3 · Stream destinations</h2>
+        <p class="muted">
+          Each destination is an RTMP URL plus a stream key from that platform. Keys are
+          encrypted on this machine and never sent back to the browser.
+        </p>
+
+        <form id="dest-form" class="dest-form">
+          <label class="field">
+            <span>Platform</span>
+            <select id="platform" name="platform" required></select>
+          </label>
+          <label class="field">
+            <span>Name</span>
+            <input id="label" name="label" type="text" placeholder="My YouTube channel" required />
+          </label>
+          <label class="field field--wide">
+            <span>RTMP server URL</span>
+            <input id="rtmpUrl" name="rtmpUrl" type="text" placeholder="rtmp://…" />
+          </label>
+          <label class="field field--wide">
+            <span>Stream key</span>
+            <input id="streamKey" name="streamKey" type="password" placeholder="paste your key" autocomplete="off" required />
+          </label>
+          <p id="key-hint" class="note field--wide"></p>
+          <div class="btn-row field--wide">
+            <button class="btn" type="submit">Add destination</button>
+          </div>
+        </form>
+
+        <p id="dest-error" class="error" hidden></p>
+        <ul id="dest-list" class="dest-list"></ul>
+      </section>
+
+      <section class="card" aria-labelledby="go-h">
+        <h2 id="go-h">4 · Go live</h2>
+        <p class="muted">Starts one encoder that fans your ingest out to every checked destination.</p>
+        <div class="btn-row">
+          <button id="go-live" class="btn btn--live" type="button">Go live</button>
+          <button id="stop-live" class="btn btn--danger" type="button" disabled>Stop</button>
+        </div>
+        <pre id="log" class="log" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>MIT licensed · runs entirely on your machine</span>
+      <a href="/docs/tiktok.md">TikTok eligibility</a>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
