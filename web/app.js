@@ -19,6 +19,8 @@ const state = {
   running: false,
   /** @type {MediaStream | null} */
   media: null,
+  /** @type {MediaDeviceInfo[]} */
+  devices: [],
 }
 
 const api = async (path, options = {}) => {
@@ -171,6 +173,7 @@ async function addDestination(event) {
 
 async function listDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
+  state.devices = devices
   const fill = (select, kind, fallback) => {
     const current = select.value
     select.innerHTML = ''
@@ -214,8 +217,7 @@ async function startCamera() {
 
   const note = $('capture-note')
   note.hidden = false
-  note.textContent =
-    'Preview is live. Sending this to the RTMP ingest needs an encoder process — see docs/capture.md.'
+  note.textContent = 'Preview is live. This is only a preview — use Publish camera to send it to the ingest.'
 }
 
 function stopCamera() {
@@ -229,6 +231,70 @@ function stopCamera() {
   $('capture-note').hidden = true
 }
 
+// --------------------------------------------------------- server capture
+
+/**
+ * Map a browser deviceId to the name ffmpeg needs.
+ *
+ * The two pickers list devices independently: the browser knows them by
+ * opaque deviceId, ffmpeg knows them by OS name ("HD Webcam", "0: FaceTime").
+ * The label is the only thing both agree on, so match on that.
+ */
+function ffmpegDeviceName(deviceId, kind) {
+  if (!deviceId) return ''
+  const list = state.devices || []
+  const match = list.find((d) => d.deviceId === deviceId)
+  if (!match) return ''
+  return (match.label || '').replace(/\s*\((?:[0-9a-f]{4}:){2}[0-9a-f]{4}\)\s*$/i, '').trim()
+}
+
+function setPubNote(text, kind = '') {
+  const note = $('pub-note')
+  if (!text) {
+    note.hidden = true
+    note.textContent = ''
+    return
+  }
+  note.hidden = false
+  note.textContent = text
+  note.className = `note ${kind}`
+}
+
+function applyCapture(status) {
+  const running = Boolean(status && status.running)
+  $('pub-start').disabled = running
+  $('pub-stop').disabled = !running
+  if (running) {
+    setPubNote(`Publishing ${status.videoDevice || 'camera'} to the ingest.`, 'ok')
+  } else if ($('pub-note').className.includes('ok')) {
+    setPubNote('')
+  }
+}
+
+async function startPublish() {
+  setPubNote('')
+  const payload = {
+    videoDevice: ffmpegDeviceName($('video-device').value, 'videoinput'),
+    audioDevice: ffmpegDeviceName($('audio-device').value, 'audioinput'),
+  }
+  const [w, h] = $('resolution').value.split('x').map(Number)
+  payload.encoding = { width: w, height: h }
+
+  try {
+    const res = await api('/api/capture/start', { method: 'POST', body: JSON.stringify(payload) })
+    logLine(`▶ publishing camera (pid ${res.pid})`)
+    applyCapture(res.status)
+  } catch (err) {
+    setPubNote(err.message, 'bad')
+  }
+}
+
+async function stopPublish() {
+  const res = await api('/api/capture/stop', { method: 'POST' })
+  logLine('■ stopped publishing camera')
+  applyCapture(res.status)
+}
+
 // ------------------------------------------------------------------ stream
 
 function applyStatus(status) {
@@ -239,6 +305,16 @@ function applyStatus(status) {
   const live = $('live')
   live.textContent = state.running ? 'live' : 'offline'
   live.className = `pill ${state.running ? 'pill--live' : 'pill--idle'}`
+
+  const note = $('record-note')
+  if (status.recording) {
+    note.hidden = false
+    note.className = 'note ok'
+    note.textContent = `Recording to ${status.recording}`
+  } else {
+    note.hidden = true
+    note.textContent = ''
+  }
 }
 
 async function goLive() {
@@ -250,9 +326,16 @@ async function goLive() {
   try {
     const res = await api('/api/stream/start', {
       method: 'POST',
-      body: JSON.stringify({ destinationIds: [...state.selected] }),
+      body: JSON.stringify({
+        destinationIds: [...state.selected],
+        record: $('record').checked,
+        recordLabel: [...state.selected]
+          .map((id) => state.destinations.find((d) => d.id === id)?.label)
+          .filter(Boolean)[0],
+      }),
     })
     logLine(`▶ started fan-out (pid ${res.pid})`)
+    if (res.status.recording) logLine(`● recording to ${res.status.recording}`)
     applyStatus(res.status)
   } catch (err) {
     showError(err.message)
@@ -280,6 +363,7 @@ function connectStatus() {
   ws.addEventListener('message', (event) => {
     const msg = JSON.parse(event.data)
     if (msg.type === 'stream') applyStatus(msg.payload)
+    if (msg.type === 'capture') applyCapture(msg.payload)
     if (msg.type === 'stderr') logLine(msg.payload.trimEnd())
     if (msg.type === 'error') logLine(`! ${msg.payload.message}`)
   })
@@ -316,10 +400,13 @@ async function init() {
     }),
   )
   $('cam-stop').addEventListener('click', stopCamera)
+  $('pub-start').addEventListener('click', () => startPublish().catch((e) => setPubNote(e.message, 'bad')))
+  $('pub-stop').addEventListener('click', () => stopPublish().catch((e) => setPubNote(e.message, 'bad')))
 
   await loadPresets()
   await loadDestinations()
   connectStatus()
+  applyCapture(await api('/api/capture/status').catch(() => ({})))
 
   if (navigator.mediaDevices?.enumerateDevices) {
     await listDevices().catch(() => {})

@@ -108,6 +108,17 @@ cd android && ./gradlew assembleDebug
 Release builds read signing material from `mobile/android/keystore.properties`,
 which is gitignored. Without it, `assembleRelease` produces an unsigned APK.
 
+### Using your camera without OBS
+
+The studio can drive a local camera itself. Press **Go live** first — the encoder is the
+RTMP listener, so capture needs it running — then press **Publish camera** in section 2.
+The server enumerates your cameras and microphones, starts a capture process, and feeds it
+to the same ingest. Destinations do not care which path you used.
+
+You can also preview the camera in the browser before publishing; the preview shows what
+the browser can see, and publishing sends what the server's user can see. On macOS and
+Windows those are different permission prompts.
+
 ### Using OBS instead of the built-in camera
 
 Settings → Stream → Service: **Custom…**
@@ -188,8 +199,9 @@ See [docs/architecture.md](docs/architecture.md). The short version:
 npm test
 ```
 
-23 tests covering RTMP URL joining (including the query-parameter case that Twitch and
-Facebook need), the tee argv, secret redaction, encryption round-trips, the guarantee
+45 tests covering RTMP URL joining (including the query-parameter case that Twitch and
+Facebook need), the tee argv, the capture argv for all three platforms, recording path
+safety and container choice, secret redaction, encryption round-trips, the guarantee
 that no destination preset ever advertises automatic key fetching, and the packaging
 contract that the desktop installer depends on.
 

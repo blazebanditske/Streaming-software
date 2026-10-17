@@ -15,6 +15,11 @@
  *   POST   /api/stream/start                begin fan-out
  *   POST   /api/stream/stop                 end fan-out
  *   GET    /api/stream/status               current state
+ *   GET    /api/devices                     local cameras and microphones
+ *   POST   /api/capture/start               publish a local camera to the ingest
+ *   POST   /api/capture/stop                stop that capture
+ *   GET    /api/capture/status              capture state
+ *   GET    /api/recordings                  files written by the tee
  *   WS     /ws                              pushes status + ffmpeg stderr
  */
 
@@ -24,6 +29,9 @@ import { extname, join, normalize, resolve } from 'node:path'
 import { WebSocketServer } from 'ws'
 import { DestinationStore } from './store.js'
 import { StreamEngine } from './engine.js'
+import { CaptureEngine } from './capture.js'
+import { listDevices } from './devices.js'
+import { recordingPath, listRecordings, ensureDir } from './recordings.js'
 import { PRESETS } from './destinations.js'
 
 const MIME = {
@@ -52,6 +60,8 @@ export function createApp(opts = {}) {
   const webDir = opts.webDir || resolve(process.cwd(), 'web')
   const store = opts.store || new DestinationStore()
   const engine = opts.engine || new StreamEngine()
+  const capture = opts.capture || new CaptureEngine({ ffmpegPath: opts.ffmpegPath })
+  const recordingsDir = opts.recordingsDir || resolve(store.dataDir, 'recordings')
 
   /** @type {Set<import('ws').WebSocket>} */
   const sockets = new Set()
@@ -67,6 +77,11 @@ export function createApp(opts = {}) {
   engine.on('exit', (info) => broadcast('stream', engine.status()))
   engine.on('started', () => broadcast('stream', engine.status()))
   engine.on('error', (err) => broadcast('error', { message: err.message }))
+
+  capture.on('stderr', (text) => broadcast('stderr', text))
+  capture.on('started', () => broadcast('capture', capture.status()))
+  capture.on('exit', () => broadcast('capture', capture.status()))
+  capture.on('error', (err) => broadcast('error', { message: `Capture: ${err.message}` }))
 
   const json = (res, status, body) => {
     const data = JSON.stringify(body)
@@ -188,6 +203,9 @@ export function createApp(opts = {}) {
           ingestPort,
           destinations,
           encoding: body.encoding || undefined,
+          recordPath: body.record
+            ? recordingPath({ dir: ensureDir(recordingsDir), label: body.recordLabel })
+            : undefined,
         })
         return json(res, 202, { ok: true, pid, status: engine.status() })
       }
@@ -199,6 +217,45 @@ export function createApp(opts = {}) {
 
       if (path === '/api/stream/status' && method === 'GET') {
         return json(res, 200, engine.status())
+      }
+
+      if (path === '/api/devices' && method === 'GET') {
+        const devices = await listDevices({ ffmpegPath: opts.ffmpegPath })
+        return json(res, 200, { ...devices, platform: process.platform })
+      }
+
+      if (path === '/api/capture/start' && method === 'POST') {
+        const body = await readBody(req)
+        if (capture.running) {
+          return json(res, 409, { error: 'Capture is already running.' })
+        }
+        // The fan-out must be listening before capture connects, otherwise
+        // ffmpeg's publisher gets a refused connection and exits immediately.
+        if (!engine.running) {
+          return json(res, 409, {
+            error: 'Start the stream first — the encoder has to be listening before capture can publish to it.',
+          })
+        }
+        const pid = capture.start({
+          ingestPort,
+          videoDevice: body.videoDevice,
+          audioDevice: body.audioDevice,
+          encoding: body.encoding || undefined,
+        })
+        return json(res, 202, { ok: true, pid, status: capture.status() })
+      }
+
+      if (path === '/api/capture/stop' && method === 'POST') {
+        const stopped = capture.stop()
+        return json(res, 200, { ok: true, stopped, status: capture.status() })
+      }
+
+      if (path === '/api/capture/status' && method === 'GET') {
+        return json(res, 200, capture.status())
+      }
+
+      if (path === '/api/recordings' && method === 'GET') {
+        return json(res, 200, { recordings: listRecordings(recordingsDir), dir: recordingsDir })
       }
 
       if (path.startsWith('/api/')) {
@@ -221,9 +278,12 @@ export function createApp(opts = {}) {
     ws.on('error', () => sockets.delete(ws))
   })
 
-  server.on('close', () => engine.stop())
+  server.on('close', () => {
+    capture.stop()
+    engine.stop()
+  })
 
-  return { server, store, engine, wss, port, ingestPort }
+  return { server, store, engine, capture, wss, port, ingestPort }
 }
 
-export { DestinationStore, StreamEngine }
+export { DestinationStore, StreamEngine, CaptureEngine }

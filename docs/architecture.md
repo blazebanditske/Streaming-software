@@ -107,6 +107,10 @@ See `docs/verification.md`.
 ## Deliberate non-goals
 
 - **No cloud relay.** The stream goes from your machine straight to each platform.
-- **No recording, scenes, overlays, or transitions.** Use OBS and point it at the ingest.
+- **No scenes, overlays, or transitions.** Use OBS and point it at the ingest. This is
+  the one thing OBS does that this project will not reimplement.
 - **No chat aggregation** (yet). Meld Studio and Restream both do this well.
 - **No automatic platform key fetching.** See `docs/tiktok.md`.
+
+Recording is **not** a non-goal: it is one extra tee branch, so it costs no CPU beyond
+the encode you are already doing. See `docs/capture.md`.

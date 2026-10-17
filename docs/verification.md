@@ -7,8 +7,8 @@ can be checked rather than trusted.
 
 ```
 $ npm test
-ℹ tests 23
-ℹ pass 23
+ℹ tests 45
+ℹ pass 45
 ℹ fail 0
 ```
 
@@ -186,8 +186,48 @@ run the ffmpeg fan-out. See `docs/mobile.md`.
   clicked through on a Windows desktop. The desktop packaging path was verified on Linux.
 - **The Android app on a device.** The APK is signed, well-formed, and correctly
   configured, but it was not installed and run on a physical phone or emulator.
-- **Browser capture → RTMP.** The UI captures camera preview via `getUserMedia`, but
-  pushing that to the ingest requires an encoder process; see `docs/capture.md`.
+- **Browser capture → RTMP.** The browser preview (`getUserMedia`) and the server-side
+  publish path are both implemented. See the next section for what was and was not
+  exercised.
+
+## Built-in capture and recording
+
+Both features were verified against real ffmpeg, not mocks.
+
+Capture:
+
+- `GET /api/devices` enumerates real devices and degrades to empty lists with an
+  explanatory note rather than erroring (this container has no camera, which is itself the
+  degradation case).
+- `POST /api/capture/start` before the stream is live is refused with an explanation,
+  because the engine is the RTMP listener and capture has nothing to connect to yet.
+- A capture pointed at a nonexistent device surfaces ffmpeg's own reason
+  (`Cannot open video device /dev/video99: No such file or directory`) through
+  `/api/capture/status` and the WebSocket, instead of failing silently.
+- The exact argv shape capture uses was confirmed end-to-end: a publisher at
+  `rtmp://127.0.0.1:<ingest>/live/studio` reaches the fan-out, and the sink received a
+  valid 6.06s H.264/AAC file.
+
+Recording:
+
+- `POST /api/stream/start` with `record: true` writes to `data/recordings/`, and the path
+  is reported in the stream status.
+- The recorded file is playable H.264/AAC of the expected duration (726432 bytes, 6.06s
+  for a 6s source).
+- Container choice was decided by measurement. Against `kill -9` mid-write: mpegts
+  recovered 262144 bytes and played; flv recovered 0; mp4 recovered 48 and would not play;
+  fragmented mp4 recovered 28 and would not play. Matroska's header write fails outright
+  under the tee muxer.
+- Stream labels are sanitised (`My Channel!!` → `My-Channel`) and the resolved path is
+  asserted to stay inside the recordings directory.
+
+Still unverified:
+
+- A real physical camera. This container has no `/dev/video*` and no loadable
+  `v4l2loopback`, so device selection, permission prompts, and the Windows/macOS input
+  formats (`dshow`, `avfoundation`) are covered by argv unit tests rather than a live
+  device.
+- Recording through a long stream with a mid-stream destination failure.
 
 ## Reproducing the end-to-end test
 

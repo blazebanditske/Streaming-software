@@ -36,8 +36,8 @@
       <section class="card" aria-labelledby="capture-h">
         <h2 id="capture-h">2 · Camera studio</h2>
         <p class="muted">
-          Optional. Records your camera and mic in the browser and pushes to the ingest above.
-          Leave it off if you are using OBS.
+          Optional. Use your camera without OBS. Leave it off if you are already sending
+          video from an encoder.
         </p>
         <div class="capture-grid">
           <video id="preview" playsinline muted autoplay></video>
@@ -59,10 +59,22 @@
               </select>
             </label>
             <div class="btn-row">
-              <button id="cam-start" class="btn" type="button">Start camera</button>
-              <button id="cam-stop" class="btn btn--ghost" type="button" disabled>Stop</button>
+              <button id="cam-start" class="btn" type="button">Preview</button>
+              <button id="cam-stop" class="btn btn--ghost" type="button" disabled>Stop preview</button>
             </div>
             <p id="capture-note" class="note" hidden></p>
+
+            <div class="capture-publish">
+              <p class="muted">
+                Publishing sends the selected camera to the ingest with a local encoder, so
+                no separate app is needed. Start the stream first.
+              </p>
+              <div class="btn-row">
+                <button id="pub-start" class="btn" type="button">Publish camera</button>
+                <button id="pub-stop" class="btn btn--ghost" type="button" disabled>Stop publishing</button>
+              </div>
+              <p id="pub-note" class="note" hidden></p>
+            </div>
           </div>
         </div>
       </section>
@@ -104,6 +116,11 @@
       <section class="card" aria-labelledby="go-h">
         <h2 id="go-h">4 · Go live</h2>
         <p class="muted">Starts one encoder that fans your ingest out to every checked destination.</p>
+        <label class="check">
+          <input id="record" type="checkbox" />
+          <span>Also record a copy on this machine</span>
+        </label>
+        <p id="record-note" class="note" hidden></p>
         <div class="btn-row">
           <button id="go-live" class="btn btn--live" type="button">Go live</button>
           <button id="stop-live" class="btn btn--danger" type="button" disabled>Stop</button>

@@ -110,6 +110,23 @@ export function buildFfmpegArgs(profile) {
     return `[f=flv:onfail=ignore:use_fifo=1]${url}`
   })
 
+  // Recording is just another tee target, which is what makes it cheap: the
+  // file receives exactly the bytes the platforms receive, with no second
+  // encode and no extra CPU. It is appended last so that a failing disk cannot
+  // affect the ordering of the platform outputs.
+  //
+  // MPEG-TS, chosen by testing what survives a kill -9 mid-write:
+  //   mpegts  262144 bytes, playable, ~3s recovered
+  //   flv     0 bytes (buffered, everything lost)
+  //   mp4     48 bytes, unplayable (index written at the end)
+  //   frag mp4 28 bytes, unplayable
+  // A recording that loses its last few seconds is fine; one that loses the
+  // whole stream is not. Note matroska looks like the natural choice but its
+  // header write fails outright under the tee muxer.
+  if (profile.recordPath) {
+    teeTargets.push(`[f=mpegts:onfail=ignore]${profile.recordPath}`)
+  }
+
   args.push('-map', '0:v', '-map', '0:a', '-f', 'tee', teeTargets.join('|'))
 
   return args
@@ -136,6 +153,74 @@ export function joinRtmp(rtmpUrl, streamKey) {
   const q = base.indexOf('?')
   if (q === -1) return `${base}/${key}`
   return `${base.slice(0, q)}/${key}${base.slice(q)}`
+}
+
+/**
+ * Build the ffmpeg argv that captures a local camera/mic and publishes it to
+ * our own ingest, so the fan-out engine can pick it up.
+ *
+ * This is deliberately a *publisher*, not part of the fan-out. It speaks to
+ * 127.0.0.1 and nothing else; the engine still owns every outbound connection.
+ * That keeps the two concerns independent: capture can restart without
+ * disturbing destinations, and an external encoder (OBS) can replace it with
+ * no other change.
+ *
+ * @param {object} opts
+ * @param {number} opts.ingestPort
+ * @param {string} [opts.videoDevice]
+ * @param {string} [opts.audioDevice]
+ * @param {string} [opts.ffmpegPath]
+ * @param {NodeJS.Platform} [opts.platform]
+ * @param {{width:number,height:number,fps:number,videoBitrateKbps:number,audioBitrateKbps:number,preset:string}} [opts.encoding]
+ * @returns {string[]}
+ */
+export function buildCaptureArgs(opts) {
+  const enc = { ...DEFAULT_ENCODING, ...(opts.encoding || {}) }
+  const platform = opts.platform || process.platform
+  const video = (opts.videoDevice || '').trim()
+  const audio = (opts.audioDevice || '').trim()
+
+  const args = ['-hide_banner', '-loglevel', 'warning', '-nostdin']
+
+  if (platform === 'win32') {
+    // dshow takes "video=NAME:audio=NAME"; either side may be omitted.
+    const parts = []
+    if (video) parts.push(`video=${video}`)
+    if (audio) parts.push(`audio=${audio}`)
+    if (!parts.length) throw new Error('A video or audio device is required.')
+    args.push('-f', 'dshow', '-i', parts.join(':'))
+  } else if (platform === 'darwin') {
+    // avfoundation takes "<video index>:<audio index>"; "" means "no device".
+    args.push('-f', 'avfoundation', '-i', `${video}:${audio}`)
+  } else {
+    if (!video) throw new Error('A video device is required on Linux.')
+    args.push('-f', 'v4l2', '-i', video)
+    if (audio) args.push('-f', 'alsa', '-i', audio)
+  }
+
+  args.push(
+    '-c:v', 'libx264',
+    '-preset', enc.preset,
+    '-tune', 'zerolatency',
+    '-b:v', `${enc.videoBitrateKbps}k`,
+    '-maxrate', `${enc.videoBitrateKbps}k`,
+    '-bufsize', `${enc.videoBitrateKbps * 2}k`,
+    '-pix_fmt', 'yuv420p',
+    '-g', String(enc.fps * 2),
+    '-r', String(enc.fps),
+    '-s', `${enc.width}x${enc.height}`,
+  )
+
+  // A camera-only capture would otherwise publish video with no audio track,
+  // which some platforms reject outright. Silence is better than absence.
+  if (audio) {
+    args.push('-c:a', 'aac', '-b:a', `${enc.audioBitrateKbps}k`, '-ar', '44100', '-ac', '2')
+  } else {
+    args.push('-an')
+  }
+
+  args.push('-f', 'flv', `rtmp://127.0.0.1:${opts.ingestPort}/live/studio`)
+  return args
 }
 
 /**
@@ -217,6 +302,7 @@ export class StreamEngine extends EventEmitter {
       destinations: this.profile
         ? this.profile.destinations.map((d) => ({ id: d.id, label: d.label, platform: d.platform }))
         : [],
+      recording: this.profile ? this.profile.recordPath || null : null,
       recentStderr: this.recentStderr.slice(-25),
     }
   }
