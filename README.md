@@ -55,23 +55,48 @@ destinations apart.
 
 ---
 
-## Android app
+## Downloads
 
-A signed APK is attached to the [v1.0.0 release](https://github.com/blazebanditske/Streaming-software/releases/tag/v1.0.0).
-Requires Android 7.0 (API 24) or newer.
+Signed and checksummed builds are attached to the
+[v1.0.0 release](https://github.com/blazebanditske/Streaming-software/releases/tag/v1.0.0).
 
-- [streaming-software-1.0.apk](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/streaming-software-1.0.apk) — signed release build
-- [SHA256SUMS.txt](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/SHA256SUMS.txt) — verify before installing
+| Platform | File | Notes |
+| --- | --- | --- |
+| Windows 10/11 | [streaming-software-setup-0.1.0.exe](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/streaming-software-setup-0.1.0.exe) | NSIS installer, bundles the studio |
+| Android 7.0+ | [streaming-software-1.0.apk](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/streaming-software-1.0.apk) | Signed release build |
+| Any | [SHA256SUMS.txt](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/SHA256SUMS.txt) | Verify before running |
 
-The app is a Capacitor shell around the browser studio. It connects to a studio server
-you run on your own network, then gives you a camera preview and a Go live button.
+Verify a download:
 
-Android will warn that the APK comes from outside the Play Store. That warning is normal
-for sideloaded apps; the build is signed and the checksum above lets you confirm the file
-was not altered in transit. On first launch the app requests camera and microphone
-permission — declining leaves the preview black.
+```bash
+sha256sum -c SHA256SUMS.txt
+```
 
-Rebuild it yourself:
+Neither build carries a paid code-signing certificate, so Windows SmartScreen and
+Android will each show a warning the first time you run them. That is normal for
+software distributed outside an app store; the checksums let you confirm the file
+was not altered in transit.
+
+### Android
+
+The app is a Capacitor shell around the browser studio. It connects to a studio
+server you run on your own network, then gives you a camera preview and a Go live
+button. On first launch it requests camera and microphone permission — declining
+leaves the preview black.
+
+### Desktop
+
+The desktop app is an Electron shell that starts the studio server as a child
+process and opens the UI, so there is no separate `npm start` step. Build it
+yourself:
+
+```bash
+cd desktop
+npm install
+npm run dist:win     # or dist:mac / dist:linux
+```
+
+Android rebuild:
 
 ```bash
 cd mobile
@@ -80,8 +105,8 @@ npx cap sync android
 cd android && ./gradlew assembleDebug
 ```
 
-Release builds read signing material from `mobile/android/keystore.properties`, which is
-gitignored. Without it, `assembleRelease` produces an unsigned APK.
+Release builds read signing material from `mobile/android/keystore.properties`,
+which is gitignored. Without it, `assembleRelease` produces an unsigned APK.
 
 ### Using OBS instead of the built-in camera
 
