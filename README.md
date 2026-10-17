@@ -188,9 +188,10 @@ See [docs/architecture.md](docs/architecture.md). The short version:
 npm test
 ```
 
-18 tests covering RTMP URL joining (including the query-parameter case that Twitch and
-Facebook need), the tee argv, secret redaction, encryption round-trips, and the guarantee
-that no destination preset ever advertises automatic key fetching.
+23 tests covering RTMP URL joining (including the query-parameter case that Twitch and
+Facebook need), the tee argv, secret redaction, encryption round-trips, the guarantee
+that no destination preset ever advertises automatic key fetching, and the packaging
+contract that the desktop installer depends on.
 
 ---
 

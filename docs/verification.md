@@ -7,8 +7,8 @@ can be checked rather than trusted.
 
 ```
 $ npm test
-ℹ tests 18
-ℹ pass 18
+ℹ tests 23
+ℹ pass 23
 ℹ fail 0
 ```
 
@@ -22,6 +22,9 @@ Coverage highlights:
 | `redactArgs hides keys from logs` | Keys never appear in logs or the UI |
 | `store encrypts keys at rest and round-trips them` | AES-256-GCM correctness, 0600 key file |
 | `no preset claims to auto-fetch a stream key` | The product promise in `docs/tiktok.md` |
+| `server ships its own package.json declaring ESM` | The packaged-app startup crash (see below) |
+| `the only bare server dependency is declared for packaging` | A new dep silently missing from the installer |
+| `createApp serves the UI from an explicit webDir` | `WEB_DIR` being dropped on the way in |
 
 ## End-to-end fan-out
 
@@ -81,6 +84,78 @@ Identical MD5 across all three confirms every destination received byte-for-byte
 stream, which is the core claim of the product. The server reported
 `destinationCount: 3` throughout.
 
+## Packaged desktop app
+
+The installer is the artifact most users touch, and it failed on first launch. It was
+rebuilt and verified by extracting the payload, not by trusting the build log.
+
+The first build shipped a server that could not start, so the app showed
+*"The local server exited with code 1"*. Three separate faults, all invisible to the unit
+tests because those only ever ran against the repo layout:
+
+1. `server/` had no `package.json`. The repo root declares `type: module`, which is what
+   made the ESM imports work. electron-builder copies `server/` into `resources/` without
+   the root `package.json`, so Node treated the files as CommonJS and threw
+   *"Cannot use import statement outside a module"*.
+2. `ws` was never packaged, so `import 'ws'` failed with `ERR_MODULE_NOT_FOUND`.
+3. `index.js` ignored `WEB_DIR`, so the window loaded a 404 once the server was up.
+
+Each fault was reproduced before being fixed, using the real Electron 33 binary with the
+packaged directory layout:
+
+```
+$ ELECTRON_RUN_AS_NODE=1 electron resources/server/src/index.js
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'ws' imported from .../app.js
+```
+
+After the fix, the server runs and the UI serves from the packaged layout:
+
+```
+$ ELECTRON_RUN_AS_NODE=1 PORT=8093 WEB_DIR=.../resources/web \
+    streaming-software-desktop resources/server/src/index.js
+{"ok":true,"version":"0.1.0","ingestPort":1935}
+$ curl -o /dev/null -w '%{http_code} %{content_type}\n' http://127.0.0.1:8093/
+200 text/html; charset=utf-8
+```
+
+The shipped installer was then opened and its payload extracted (`7z` on the NSIS
+installer, then the inner `app-64.7z`) to confirm the fix is actually inside the artifact:
+
+```
+resources/server/package.json        "type": "module"
+resources/node_modules/ws/package.json   version 8.22.0
+resources/web/index.html, app.js, styles.css
+```
+
+A full fan-out was run through the packaged server: one publisher, two sinks, both
+receiving 2,474,675 bytes of valid H.264 + AAC.
+
+## Android APK
+
+Verified against the published artifact rather than the build output.
+
+```
+$ apksigner verify --print-certs -v streaming-software-1.0.apk
+Verifies
+Verified using v2 scheme (APK Signature Scheme v2): true
+Signer #1 certificate DN: CN=Streaming Software, OU=Open Source, O=Streaming Software, ...
+Signer #1 certificate SHA-256 digest: a334ee3cb2e2f47d328bc0a2d9587e840a397db716bd01bb8e611821c30352b2
+```
+
+```
+$ aapt dump badging streaming-software-1.0.apk
+package: name='org.streamingsoftware.app' versionCode='1' versionName='1.0'
+sdkVersion:'24'  targetSdkVersion:'36'
+uses-permission: android.permission.INTERNET, CAMERA, RECORD_AUDIO, ...
+```
+
+The web assets are present inside the APK (`assets/public/index.html`, `app.js`,
+`styles.css`), and `android:usesCleartextTraffic` is set, which the app needs because it
+talks to a studio server on the LAN over plain `http://`.
+
+Note the app's role: it is a remote control and camera source, not a host. Phones cannot
+run the ffmpeg fan-out. See `docs/mobile.md`.
+
 ## What is not verified
 
 - **Real platform endpoints.** No live stream was pushed to YouTube, Twitch, Facebook, or
@@ -88,8 +163,11 @@ stream, which is the core claim of the product. The server reported
 - **Behaviour when one destination dies mid-stream.** `onfail=ignore` and `use_fifo=1` are
   set per target and covered by unit tests, but a mid-stream kill of one sink while the
   others continue was not exercised.
-- **Desktop and mobile builds.** Electron and Capacitor were not installed or compiled here
-  (no Android SDK/Java in the build environment). Their source is syntax-checked only.
+- **The Windows GUI on Windows.** The installer's contents were verified by extraction and
+  the server was exercised with the real Electron binary, but the app window was not
+  clicked through on a Windows desktop. The desktop packaging path was verified on Linux.
+- **The Android app on a device.** The APK is signed, well-formed, and correctly
+  configured, but it was not installed and run on a physical phone or emulator.
 - **Browser capture → RTMP.** The UI captures camera preview via `getUserMedia`, but
   pushing that to the ingest requires an encoder process; see `docs/capture.md`.
 

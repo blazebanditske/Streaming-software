@@ -81,6 +81,15 @@ authentication; see `security.md` before exposing it.
 
 ## Current status
 
-The Capacitor config, the mobile UI, and the connection flow are complete and the JS is
-syntax-checked. The native Android and iOS projects are not built in this repository because
-the toolchain is not available here. Running `npm run add:android` produces them.
+The Capacitor config, the mobile UI, and the connection flow are complete. A signed release
+APK is built and published from CI; see the downloads table in the README.
+
+The app is a remote control and camera source, not a host. It connects to a studio server
+you run elsewhere, which does the ffmpeg fan-out.
+
+The native iOS project is not built in this repository. Running `npm run add:ios` produces it.
+
+Verified against the published APK: v2 signature by the release certificate, `minSdk 24`,
+`targetSdk 36`, cleartext traffic enabled (required for a LAN studio over plain `http://`),
+and the web assets present under `assets/public/`. The APK has not been run on a physical
+device or emulator from this environment.
