@@ -19,6 +19,7 @@ const INGEST_PORT = Number(process.env.INGEST_PORT || 1935)
 
 let serverProcess = null
 let mainWindow = null
+let quitting = false
 
 /**
  * Locate the server entrypoint in both dev and packaged layouts.
@@ -55,13 +56,38 @@ function startServer() {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 
-  serverProcess.stdout.on('data', (d) => process.stdout.write(`[server] ${d}`))
-  serverProcess.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
-  serverProcess.on('exit', (code) => {
-    if (code !== 0 && mainWindow) {
-      dialog.showErrorBox('Studio stopped', `The local server exited with code ${code}.`)
+  // Keep the tail of the server's output so a crash can be explained instead
+  // of reporting a bare exit code.
+  const recentOutput = []
+  const capture = (chunk) => {
+    const text = chunk.toString()
+    for (const line of text.split('\n')) {
+      if (line.trim()) recentOutput.push(line)
     }
+    while (recentOutput.length > 20) recentOutput.shift()
+  }
+
+  serverProcess.stdout.on('data', (d) => {
+    capture(d)
+    process.stdout.write(`[server] ${d}`)
+  })
+  serverProcess.stderr.on('data', (d) => {
+    capture(d)
+    process.stderr.write(`[server] ${d}`)
+  })
+  serverProcess.on('error', (err) => {
+    dialog.showErrorBox('Studio stopped', `Could not start the local server.\n\n${err.message}`)
+  })
+  serverProcess.on('exit', (code) => {
     serverProcess = null
+    // A shutdown we asked for is not a failure.
+    if (quitting || code === 0 || code === null) return
+    if (mainWindow) {
+      dialog.showErrorBox(
+        'Studio stopped',
+        `The local server exited with code ${code}.\n\n${recentOutput.join('\n')}`,
+      )
+    }
   })
 }
 
@@ -170,9 +196,17 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  quitting = true
   stopServer()
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', stopServer)
-process.on('exit', stopServer)
+app.on('before-quit', () => {
+  quitting = true
+  stopServer()
+})
+
+process.on('exit', () => {
+  quitting = true
+  stopServer()
+})

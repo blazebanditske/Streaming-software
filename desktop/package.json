@@ -13,6 +13,9 @@
     "dist:mac": "electron-builder --mac",
     "dist:linux": "electron-builder --linux"
   },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8"
@@ -23,7 +26,8 @@
     "files": ["main.js", "preload.js", "**/*"],
     "extraResources": [
       { "from": "../server", "to": "server" },
-      { "from": "../web", "to": "web" }
+      { "from": "../web", "to": "web" },
+      { "from": "node_modules/ws", "to": "node_modules/ws" }
     ],
     "win": { "target": "nsis" },
     "mac": { "target": "dmg", "category": "public.app-category.video" },

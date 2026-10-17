@@ -2,8 +2,11 @@ import { createApp } from './app.js'
 
 const port = Number(process.env.PORT || 8080)
 const ingestPort = Number(process.env.INGEST_PORT || 1935)
+// The desktop shell runs us from its own directory, so it passes the web
+// assets location explicitly rather than relying on the working directory.
+const webDir = process.env.WEB_DIR || undefined
 
-const app = createApp({ port, ingestPort })
+const app = createApp({ port, ingestPort, webDir })
 
 app.server.listen(port, () => {
   const base = `http://localhost:${port}`
