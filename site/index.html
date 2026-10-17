@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streaming Software — free multistreaming studio</title>
+<meta name="description" content="Stream to YouTube, Twitch, Facebook and TikTok at the same time. Free, open source, no account, no cloud relay.">
+<meta name="theme-color" content="#0b0d12">
+<meta property="og:title" content="Streaming Software — free multistreaming studio">
+<meta property="og:description" content="One capture, many destinations. Free, open source, no account.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128225;</text></svg>">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Open source &middot; MIT &middot; no account</p>
+    <h1>Stream everywhere<br>at once.</h1>
+    <p class="lede">
+      One capture, fanned out to YouTube, Twitch, Facebook and TikTok
+      simultaneously. No subscription, no cloud relay, no sign-up.
+      Your stream never leaves your machine.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#download">Download for Android</a>
+      <a class="btn" href="#run">Run it on your computer</a>
+      <a class="btn ghost" href="https://github.com/blazebanditske/Streaming-software">Source on GitHub</a>
+    </div>
+
+    <div class="diagram" aria-label="Architecture diagram">
+      <div class="node src">Camera<br><span>or OBS</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node core">Your studio<br><span>one ffmpeg</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node out">
+        <div>YouTube</div><div>Twitch</div><div>Facebook</div><div>TikTok</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="wrap" id="why">
+  <h2>Why this exists</h2>
+  <p class="section-lede">
+    Multistreaming services charge a monthly fee to relay a stream you could
+    already relay yourself. ffmpeg's <code>tee</code> muxer has done this for
+    years. This project is a readable wrapper around it, plus an interface you
+    can use without touching a terminal.
+  </p>
+  <div class="grid">
+    <article class="card">
+      <h3>Free, actually</h3>
+      <p>No account, no tier limits, no watermark, no minutes counter. MIT licensed.</p>
+    </article>
+    <article class="card">
+      <h3>Private by design</h3>
+      <p>Encoding happens on your machine. Nothing is proxied through anyone's server.</p>
+    </article>
+    <article class="card">
+      <h3>One encode, many outputs</h3>
+      <p>Your CPU encodes once and the result is duplicated. Adding a destination is nearly free.</p>
+    </article>
+    <article class="card">
+      <h3>Keys stay secret</h3>
+      <p>Stream keys are encrypted at rest with AES-256-GCM and never sent back to the browser.</p>
+    </article>
+    <article class="card">
+      <h3>Works with OBS</h3>
+      <p>Point OBS at the local ingest URL, or use the built-in browser studio.</p>
+    </article>
+    <article class="card">
+      <h3>Readable code</h3>
+      <p>Plain Node, no framework, no build step. The whole engine is a few hundred lines.</p>
+    </article>
+  </div>
+</section>
+
+<section class="wrap" id="download">
+  <h2>Download</h2>
+  <p class="section-lede">
+    The Android app connects to a studio server you run, then gives you a
+    camera preview and one button to go live. Requires Android 7.0 or newer.
+  </p>
+  <div class="downloads">
+    <a class="dl" href="https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/streaming-software-1.0.apk">
+      <strong>Android APK</strong>
+      <span>3.1 MB &middot; signed release</span>
+    </a>
+    <a class="dl" href="https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/SHA256SUMS.txt">
+      <strong>Checksums</strong>
+      <span>SHA-256, verify your download</span>
+    </a>
+  </div>
+  <p class="note">
+    Android will warn that this comes from outside the Play Store. That is
+    expected for sideloaded apps &mdash; the APK is signed, and you can verify the
+    checksum above. On first launch the app asks for camera and microphone
+    access; without those the preview stays black.
+  </p>
+</section>
+
+<section class="wrap" id="run">
+  <h2>Run it on your computer</h2>
+  <p class="section-lede">Needs Node 20+ and ffmpeg on your PATH.</p>
+  <pre><code>git clone https://github.com/blazebanditske/Streaming-software
+cd Streaming-software
+npm install
+npm start</code></pre>
+  <p>Then open <code>http://localhost:8080</code>. Add a destination, paste the
+  stream key from your platform's dashboard, and press Go Live.</p>
+  <p>Prefer OBS? Point it at <code>rtmp://localhost:1935/live/studio</code> and
+  let the studio handle the fan-out.</p>
+</section>
+
+<section class="wrap" id="tiktok">
+  <h2>About TikTok</h2>
+  <div class="callout">
+    <p>
+      TikTok allows RTMP only for eligible accounts &mdash; roughly 1,000 followers,
+      18 or older, in good standing. If you qualify, TikTok works here as a
+      first-class destination: paste the Server URL and key from Live Center,
+      same as any other platform.
+    </p>
+    <p>
+      <strong>What this project will not do is fake that eligibility.</strong>
+      Tools that advertise "stream to TikTok without a stream key" work by
+      lifting your session token and replaying it against TikTok's private
+      creator API. That breaks TikTok's terms and has a documented history of
+      getting accounts shadowbanned.
+    </p>
+    <p>
+      Every platform preset in this codebase carries
+      <code>supportsAutoKey: false</code>, and a test asserts it stays that way.
+      The promise is enforced by the build, not just written down.
+    </p>
+    <p>
+      If you are not yet eligible, the guide in the repository covers four
+      legitimate routes &mdash; including using a virtual camera with TikTok's own
+      Live Studio, which needs no key at all and works today.
+    </p>
+  </div>
+</section>
+
+<section class="wrap" id="faq">
+  <h2>Questions</h2>
+  <details>
+    <summary>Is this really free?</summary>
+    <p>Yes. MIT licensed, no account, no paid tier. You supply the computer and
+    the internet connection; there is nothing else to buy.</p>
+  </details>
+  <details>
+    <summary>Does my stream pass through your servers?</summary>
+    <p>There are no servers. Your machine encodes and uploads directly to each
+    platform. The project has no backend service.</p>
+  </details>
+  <details>
+    <summary>Can I host the web studio on a public URL?</summary>
+    <p>The studio needs the local server, which controls ffmpeg on your
+    machine. Exposing that to the internet would let anyone start or stop your
+    stream, so it is deliberately local-only. See the security notes in the
+    repository before putting it behind a proxy.</p>
+  </details>
+  <details>
+    <summary>How many destinations can I add?</summary>
+    <p>As many as your upload bandwidth and CPU can handle. The encode happens
+    once, so the cost per extra destination is mostly bandwidth.</p>
+  </details>
+  <details>
+    <summary>Is the Android app on the Play Store?</summary>
+    <p>No. It is distributed here as a signed APK.</p>
+  </details>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="https://github.com/blazebanditske/Streaming-software">GitHub</a> &middot;
+      <a href="https://github.com/blazebanditske/Streaming-software/tree/main/docs">Documentation</a> &middot;
+      <a href="https://github.com/blazebanditske/Streaming-software/blob/main/LICENSE">MIT License</a>
+    </p>
+    <p class="fine">Built with ffmpeg. Not affiliated with YouTube, Twitch, Meta, or TikTok.</p>
+  </div>
+</footer>
+
+</body>
+</html>

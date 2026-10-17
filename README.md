@@ -53,6 +53,36 @@ Each stream key is encrypted at rest with AES-256-GCM and is never returned to t
 browser. The API only ever exposes a four-character fingerprint so you can tell two
 destinations apart.
 
+---
+
+## Android app
+
+A signed APK is attached to the [v1.0.0 release](https://github.com/blazebanditske/Streaming-software/releases/tag/v1.0.0).
+Requires Android 7.0 (API 24) or newer.
+
+- [streaming-software-1.0.apk](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/streaming-software-1.0.apk) — signed release build
+- [SHA256SUMS.txt](https://github.com/blazebanditske/Streaming-software/releases/download/v1.0.0/SHA256SUMS.txt) — verify before installing
+
+The app is a Capacitor shell around the browser studio. It connects to a studio server
+you run on your own network, then gives you a camera preview and a Go live button.
+
+Android will warn that the APK comes from outside the Play Store. That warning is normal
+for sideloaded apps; the build is signed and the checksum above lets you confirm the file
+was not altered in transit. On first launch the app requests camera and microphone
+permission — declining leaves the preview black.
+
+Rebuild it yourself:
+
+```bash
+cd mobile
+npm ci
+npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+Release builds read signing material from `mobile/android/keystore.properties`, which is
+gitignored. Without it, `assembleRelease` produces an unsigned APK.
+
 ### Using OBS instead of the built-in camera
 
 Settings → Stream → Service: **Custom…**

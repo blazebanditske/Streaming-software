@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Streaming Software</string>
+    <string name="title_activity_main">Streaming Software</string>
+    <string name="package_name">org.streamingsoftware.app</string>
+    <string name="custom_url_scheme">org.streamingsoftware.app</string>
+</resources>

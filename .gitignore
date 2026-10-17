@@ -7,5 +7,19 @@ out/
 .DS_Store
 *.log
 .env
-mobile/android/
+
+# Generated native projects: recreate with `npx cap add android` / `npx cap add ios`.
+# android/ is tracked because it carries a hand-edited manifest and MainActivity.
 mobile/ios/
+
+# Android build outputs and signing material
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/*.keystore
+mobile/android/app/*.keystore
+
+# Android signing material
+mobile/android/keystore.properties
+mobile/android/app/keystore.properties
