@@ -130,6 +130,24 @@ resources/web/index.html, app.js, styles.css
 A full fan-out was run through the packaged server: one publisher, two sinks, both
 receiving 2,474,675 bytes of valid H.264 + AAC.
 
+The whole app was then launched, not just the server, under a virtual display
+(`xvfb-run`). The shell spawned the server, the window loaded from `app.asar`, and the
+UI served:
+
+```
+$ xvfb-run -a ./streaming-software-desktop --no-sandbox
+[server]   streaming-software
+[server]   Studio:      http://localhost:8080
+[server]   Ingest:      rtmp://localhost:1935/live/studio
+$ curl http://127.0.0.1:8080/api/health
+{"ok":true,"version":"0.1.0","ingestPort":1935}
+$ curl -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+200
+```
+
+Quitting the app released the port and produced no error dialog, confirming the
+shutdown path is not mistaken for a crash.
+
 ## Android APK
 
 Verified against the published artifact rather than the build output.
