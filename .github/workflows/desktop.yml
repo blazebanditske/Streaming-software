@@ -1,0 +1,50 @@
+name: Desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'server/**'
+      - 'web/**'
+      - '.github/workflows/desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'server/**'
+      - 'web/**'
+      - '.github/workflows/desktop.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Windows installer
+        run: npm run dist:win
+        env:
+          # Unsigned builds are fine here; electron-builder skips the signing
+          # step when no certificate is configured.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: streaming-software-windows
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.blockmap
+          if-no-files-found: error
